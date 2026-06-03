@@ -247,7 +247,7 @@ fun YemenMainView(viewModel: YemenViewModel) {
                 ) {
                     // Left informational button
                     IconButton(
-                        onClick = { showSupportModal = true },
+                        onClick = { viewModel.navigateTo(Screen.AboutApp) },
                         modifier = Modifier.testTag("info_button")
                     ) {
                         Icon(
@@ -341,6 +341,7 @@ fun YemenMainView(viewModel: YemenViewModel) {
                         is Screen.AdminLogin -> AdminLoginScreen(viewModel, primaryColor, secondaryColor, surfaceColor, appFontColor, language)
                         is Screen.AdminPanel -> AdminPanelScreen(viewModel, primaryColor, secondaryColor, surfaceColor, appFontColor, language)
                         is Screen.SecretSettings -> SecretSettingsScreen(viewModel, primaryColor, secondaryColor, surfaceColor, appFontColor, language)
+                        is Screen.AboutApp -> AboutAppScreen(viewModel, primaryColor, secondaryColor, surfaceColor, appFontColor, language)
                     }
                 }
             }

@@ -21,7 +21,15 @@ data class SystemSettingsEntity(
     val topBarOrder: String = "HOME,LOGIN,REGISTER_PROVIDER,LANGUAGE,REFRESH",
     val isSubscriptionFeatureEnabled: Boolean = true,
     val smartAssistantSize: Int = 48, // dp
-    val smartAssistantColor: String = "DEFAULT"
+    val smartAssistantColor: String = "DEFAULT",
+    
+    // Configurable About Page parameters
+    val downloadUrl: String = "https://example.com/download",
+    val aboutWelcome: String = "مرحباً بك في تطبيق خدمات اليمن المتكامل! نسعى بكل شغف لتقديم أرقى وأبسط قنوات التواصل لربط العملاء بالمهندسين والمقدمين الأفضل بجميع المحافظات.",
+    val fabIconClass: String = "fas fa-headset", // e.g., "fas fa-headset", "fas fa-phone-alt", "fas fa-envelope", "fas fa-share-alt"
+    val fabPosition: String = "bottom-left", // "bottom-left", "bottom-right"
+    val fabSize: Int = 60, // size in pixels (e.g. 50, 60, 70)
+    val fabColor: String = "#E2E8F0" // HEX color code e.g. #D4AF37
 )
 
 @Entity(tableName = "categories")

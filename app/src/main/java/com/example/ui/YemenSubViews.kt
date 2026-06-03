@@ -5,6 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import android.speech.RecognizerIntent
 import android.widget.Toast
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebSettings
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -1538,6 +1544,14 @@ fun SecretSettingsScreen(
     var whatsappInput by remember { mutableStateOf(settings.supportWhatsapp) }
     var passInput by remember { mutableStateOf(settings.adminPassword) }
 
+    // About Page Customize settings
+    var downloadUrlInput by remember { mutableStateOf(settings.downloadUrl) }
+    var aboutWelcomeInput by remember { mutableStateOf(settings.aboutWelcome) }
+    var fabIconClassInput by remember { mutableStateOf(settings.fabIconClass) }
+    var fabPositionInput by remember { mutableStateOf(settings.fabPosition) }
+    var fabSizeInput by remember { mutableStateOf(settings.fabSize.toString()) }
+    var fabColorInput by remember { mutableStateOf(settings.fabColor) }
+
     var selectedTheme by remember { mutableStateOf(settings.themeName) }
     var selectedFontColor by remember { mutableStateOf(settings.fontColorName) }
 
@@ -1633,6 +1647,96 @@ fun SecretSettingsScreen(
             }
         }
 
+        // About the App Panel Toggles
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, primaryColor.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "⚙️ تخصيص صفحة (حول التطبيق) والزر العائم:",
+                        color = fontColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+
+                    OutlinedTextField(
+                        value = downloadUrlInput,
+                        onValueChange = { downloadUrlInput = it },
+                        label = { Text("رابط تحميل التطبيق للمشاركة", color = primaryColor.copy(alpha = 0.8f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = primaryColor, unfocusedBorderColor = secondaryColor, focusedTextColor = Color.White)
+                    )
+
+                    OutlinedTextField(
+                        value = aboutWelcomeInput,
+                        onValueChange = { aboutWelcomeInput = it },
+                        label = { Text("نص ترحيبي ووصف حول التطبيق", color = primaryColor.copy(alpha = 0.8f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 4,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = primaryColor, unfocusedBorderColor = secondaryColor, focusedTextColor = Color.White)
+                    )
+
+                    OutlinedTextField(
+                        value = fabIconClassInput,
+                        onValueChange = { fabIconClassInput = it },
+                        label = { Text("أيقونة الزر العائم (FontAwesome Class مثلاً: fas fa-headset)", color = primaryColor.copy(alpha = 0.8f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = primaryColor, unfocusedBorderColor = secondaryColor, focusedTextColor = Color.White)
+                    )
+
+                    OutlinedTextField(
+                        value = fabSizeInput,
+                        onValueChange = { fabSizeInput = it },
+                        label = { Text("حجم أيقونة الزر العائم (بكسل، افتراضي: 60)", color = primaryColor.copy(alpha = 0.8f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = primaryColor, unfocusedBorderColor = secondaryColor, focusedTextColor = Color.White)
+                    )
+
+                    OutlinedTextField(
+                        value = fabColorInput,
+                        onValueChange = { fabColorInput = it },
+                        label = { Text("لون الزر العائم (كود HEX مثل #FF9800)", color = primaryColor.copy(alpha = 0.8f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = primaryColor, unfocusedBorderColor = secondaryColor, focusedTextColor = Color.White)
+                    )
+
+                    Text(
+                        text = "موقع الزر العائم في الصفحة:",
+                        color = fontColor.copy(alpha = 0.8f),
+                        fontSize = 11.sp
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("bottom-left" to "⬅️ يسار أسفل الشاشة", "bottom-right" to "➡️ يمين أسفل الشاشة").forEach { pos ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(if (fabPositionInput == pos.first) primaryColor else surfaceColor.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                    .border(1.dp, primaryColor)
+                                    .clickable { fabPositionInput = pos.first }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = pos.second,
+                                    color = if (fabPositionInput == pos.first) Color.Black else fontColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Color selector theme parameters
         item {
             Card(
@@ -1723,7 +1827,13 @@ fun SecretSettingsScreen(
                         supportWhatsapp = whatsappInput,
                         adminPassword = passInput,
                         themeName = selectedTheme,
-                        fontColorName = selectedFontColor
+                        fontColorName = selectedFontColor,
+                        downloadUrl = downloadUrlInput,
+                        aboutWelcome = aboutWelcomeInput,
+                        fabIconClass = fabIconClassInput,
+                        fabPosition = fabPositionInput,
+                        fabSize = fabSizeInput.toIntOrNull() ?: 60,
+                        fabColor = fabColorInput
                     )
                     viewModel.updateSettings(updated)
                     Toast.makeText(context, "تم حفظ ومزامنة الألوان والمصفوفات لجميع الأجهزة النشطة بنجاح! 🎉", Toast.LENGTH_LONG).show()
@@ -2110,5 +2220,558 @@ fun AdminPanelScreen(
                 }
             }
         }
+    }
+}
+
+// ==========================================
+// 8. ABOUT APP SCREEN (HIGH RE-USE DYNAMIC WEBVIEW DESIGN)
+// ==========================================
+@Composable
+fun AboutAppScreen(
+    viewModel: YemenViewModel,
+    primaryColor: Color,
+    secondaryColor: Color,
+    surfaceColor: Color,
+    fontColor: Color,
+    language: String
+) {
+    val context = LocalContext.current
+    val settings by viewModel.settings.collectAsState()
+
+    // Parse App Colors into Hex Format safely
+    val primaryHex = String.format("#%06X", (0xFFFFFF and primaryColor.value.toInt()))
+    val secondaryHex = String.format("#%06X", (0xFFFFFF and secondaryColor.value.toInt()))
+    val backgroundHex = "#0F172A" // Beautiful rich deep eye-comfort midnight navy
+    val surfaceHex = String.format("#%06X", (0xFFFFFF and surfaceColor.value.toInt()))
+    val fontHex = String.format("#%06X", (0xFFFFFF and fontColor.value.toInt()))
+    
+    val fabColorStr = if (settings.fabColor.startsWith("#")) settings.fabColor else "#${settings.fabColor}"
+    val fabPosStyle = if (settings.fabPosition == "bottom-left") "bottom: 24px; left: 24px;" else "bottom: 24px; right: 24px;"
+    val fabMenuPosStyle = if (settings.fabPosition == "bottom-left") "left: 0;" else "right: 0;"
+
+    // HTML Content generated on-the-fly dynamically combining the database parameters
+    val htmlData = """
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+            <title>حول التطبيق</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+            
+            <style>
+                :root {
+                    --primary-color: $primaryHex;
+                    --secondary-color: $secondaryHex;
+                    --background-color: $backgroundHex;
+                    --surface-color: $surfaceHex;
+                    --font-color: $fontHex;
+                    --fab-color: $fabColorStr;
+                    --fab-size: ${settings.fabSize}px;
+                }
+                
+                * {
+                    box-sizing: border-box;
+                    margin: 0;
+                    padding: 0;
+                    font-family: 'Cairo', sans-serif;
+                }
+                
+                body {
+                    background-color: var(--background-color);
+                    color: var(--font-color);
+                    padding: 16px;
+                    direction: rtl;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    min-height: 100vh;
+                    position: relative;
+                }
+
+                .header-card {
+                    background: linear-gradient(135deg, var(--surface-color), rgba(15, 23, 42, 0.95));
+                    border-radius: 16px;
+                    padding: 24px 20px;
+                    text-align: center;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    margin-bottom: 20px;
+                }
+
+                .app-logo {
+                    font-size: 54px;
+                    color: var(--primary-color);
+                    margin-bottom: 12px;
+                    animation: bounce 1.8s infinite alternate cubic-bezier(0.455, 0.03, 0.515, 0.955);
+                }
+
+                @keyframes bounce {
+                    from { transform: translateY(0); }
+                    to { transform: translateY(-8px); }
+                }
+
+                .welcome-title {
+                    font-size: 21px;
+                    font-weight: 800;
+                    color: var(--primary-color);
+                    margin-bottom: 8px;
+                }
+
+                .welcome-text {
+                    font-size: 13.5px;
+                    opacity: 0.9;
+                    color: var(--font-color);
+                    text-align: center;
+                }
+
+                .info-section {
+                    background-color: var(--surface-color);
+                    border-radius: 16px;
+                    padding: 20px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+                    border: 1px solid rgba(255,255,255,0.05);
+                    margin-bottom: 20px;
+                }
+
+                .section-title {
+                    font-size: 15px;
+                    font-weight: 700;
+                    border-bottom: 2px solid var(--primary-color);
+                    padding-bottom: 8px;
+                    margin-bottom: 16px;
+                    color: var(--primary-color);
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .contact-item {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    padding: 14px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                }
+                
+                .contact-item:last-child {
+                    border-bottom: none;
+                }
+
+                .contact-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    font-weight: 600;
+                    font-size: 14px;
+                }
+
+                .contact-label i {
+                    color: var(--primary-color);
+                    font-size: 18px;
+                    width: 20px;
+                    text-align: center;
+                }
+
+                .contact-val {
+                    direction: ltr;
+                    text-align: right;
+                    font-weight: 700;
+                    font-size: 15px;
+                    word-break: break-all;
+                    opacity: 0.95;
+                    padding: 6px 10px;
+                    background: rgba(255, 255, 255, 0.03);
+                    border-radius: 6px;
+                }
+
+                .btn-group {
+                    display: flex;
+                    gap: 8px;
+                    margin-top: 5px;
+                }
+
+                .action-btn {
+                    flex: 1;
+                    padding: 10px 12px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    transition: all 0.2s ease;
+                }
+
+                .btn-call {
+                    background-color: var(--primary-color);
+                    color: #0b3f2e; /* dark text contrast */
+                }
+                
+                .btn-copy {
+                    background-color: rgba(255,255,255,0.1);
+                    color: var(--font-color);
+                    border: 1px solid rgba(255,255,255,0.2);
+                }
+
+                .action-btn:active {
+                    transform: scale(0.95);
+                }
+
+                .share-banner {
+                    text-align: center;
+                    background-color: rgba(255, 255, 255, 0.03);
+                    border: 2px dashed var(--primary-color);
+                    border-radius: 14px;
+                    padding: 18px;
+                    margin-bottom: 60px;
+                }
+
+                .btn-share {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    background-color: var(--primary-color);
+                    color: #000;
+                    padding: 12px 24px;
+                    border: none;
+                    border-radius: 10px;
+                    font-weight: 700;
+                    font-size: 13px;
+                    width: 100%;
+                    justify-content: center;
+                    transition: transform 0.2s;
+                    cursor: pointer;
+                }
+
+                .btn-share:active {
+                    transform: scale(0.97);
+                }
+
+                /* Floating Action Button (FAB) Configurable Settings */
+                .fab-container {
+                    position: fixed;
+                    $fabPosStyle
+                    z-index: 1000;
+                }
+
+                .fab-btn {
+                    width: var(--fab-size);
+                    height: var(--fab-size);
+                    border-radius: 50%;
+                    background-color: var(--fab-color);
+                    color: #121212;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                    border: 2px solid var(--primary-color);
+                    cursor: pointer;
+                    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    font-size: calc(var(--fab-size) * 0.4);
+                }
+
+                .fab-btn:active {
+                    transform: scale(0.9);
+                }
+
+                .fab-menu {
+                    position: absolute;
+                    bottom: calc(var(--fab-size) + 12px);
+                    $fabMenuPosStyle
+                    background-color: var(--surface-color);
+                    border-radius: 12px;
+                    box-shadow: 0 5px 25px rgba(0,0,0,0.6);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    padding: 8px;
+                    display: none;
+                    width: 180px;
+                    flex-direction: column;
+                    gap: 6px;
+                    animation: slideUp 0.25s forwards;
+                }
+
+                @keyframes slideUp {
+                    from { opacity: 0; transform: translateY(15px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                .fab-menu-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 10px 12px;
+                    border-radius: 8px;
+                    color: var(--font-color);
+                    font-weight: 600;
+                    font-size: 13.5px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                    text-align: right;
+                }
+
+                .fab-menu-item:hover, .fab-menu-item:active {
+                    background-color: rgba(255,255,255,0.08);
+                    color: var(--primary-color);
+                }
+                
+                .fab-menu-item i {
+                    color: var(--primary-color);
+                    font-size: 14px;
+                }
+                
+                .toast-popup {
+                    position: fixed;
+                    bottom: 40px;
+                    left: 50%;
+                    transform: translateX(-50%) translateY(100px);
+                    background-color: #323232;
+                    color: #fff;
+                    padding: 12px 24px;
+                    border-radius: 20px;
+                    font-size: 12.5px;
+                    font-weight: 600;
+                    z-index: 10000;
+                    opacity: 0;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+                }
+                
+                .toast-popup.show {
+                    transform: translateX(-50%) translateY(0);
+                    opacity: 1;
+                }
+            </style>
+        </head>
+        <body>
+
+            <div class="header-card">
+                <div class="app-logo">
+                    <i class="fas fa-handshake-angle"></i>
+                </div>
+                <div class="welcome-title">${settings.appName}</div>
+                <div class="welcome-text">${settings.aboutWelcome}</div>
+            </div>
+
+            <div class="info-section">
+                <div class="section-title">
+                    <i class="fas fa-info-circle"></i>
+                    <span>بيانات التواصل المباشرة</span>
+                </div>
+
+                <!-- Support Phone Number -->
+                <div class="contact-item">
+                    <div class="contact-label">
+                        <i class="fas fa-phone-volume"></i>
+                        <span>رقم الدعم الفني المباشر</span>
+                    </div>
+                    <div class="contact-val">${settings.supportPhone}</div>
+                    <div class="btn-group">
+                        <button class="action-btn btn-call" onclick="triggerCall('${settings.supportPhone}')">
+                            <i class="fas fa-mobile-screen-button"></i> اتصل اﻵن
+                        </button>
+                        <button class="action-btn btn-copy" onclick="triggerCopy('${settings.supportPhone}', 'تم نسخ رقم الدعم الفني بنجاح')">
+                            <i class="fas fa-paste"></i> نسخ الرقم
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Support Email -->
+                <div class="contact-item">
+                    <div class="contact-label">
+                        <i class="fas fa-envelope-open-text"></i>
+                        <span>البريد الإلكتروني للإدارة</span>
+                    </div>
+                    <div class="contact-val">${settings.supportEmail}</div>
+                    <div class="btn-group">
+                        <button class="action-btn btn-call" onclick="triggerEmail('${settings.supportEmail}')">
+                            <i class="fas fa-paper-plane"></i> مراسلة المالك
+                        </button>
+                        <button class="action-btn btn-copy" onclick="triggerCopy('${settings.supportEmail}', 'تم نسخ البريد الإلكتروني بنجاح')">
+                            <i class="fas fa-copy"></i> نسخ الإيميل
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Share Application Link -->
+            <div class="share-banner">
+                <p style="margin-bottom: 12px; font-weight: 700; font-size: 13.5px; opacity: 0.9;">هل أعجبك التطبيق؟ شاركه مع الأصدقاء والعائلة لدعم ومساندة الأسر والعاملين في جميع المحافظات!</p>
+                <button class="btn-share" onclick="triggerShare('${settings.downloadUrl}')">
+                    <i class="fas fa-share-nodes"></i> مشاركة رابط تحميل التطبيق
+                </button>
+            </div>
+
+            <!-- Floating Action Button (FAB) config view -->
+            <div class="fab-container">
+                <div class="fab-menu" id="fabMenu">
+                    <div class="fab-menu-item" onclick="triggerCall('${settings.supportPhone}')">
+                        <i class="fas fa-phone-volume"></i>
+                        <span>اتصل بالدعم</span>
+                    </div>
+                    <div class="fab-menu-item" onclick="triggerShare('${settings.downloadUrl}')">
+                        <i class="fas fa-share-nodes"></i>
+                        <span>مشاركة التطبيق</span>
+                    </div>
+                </div>
+                <!-- Custom Dynamic Icon and Size controlled directly by the Database settings -->
+                <div class="fab-btn" onclick="toggleFabMenu(event)">
+                    <i class="${settings.fabIconClass}"></i>
+                </div>
+            </div>
+            
+            <div class="toast-popup" id="toastPop">تم النسخ بنجاح</div>
+
+            <script>
+                function toggleFabMenu(event) {
+                    event.stopPropagation();
+                    var menu = document.getElementById('fabMenu');
+                    if (menu.style.display === 'flex') {
+                        menu.style.display = 'none';
+                    } else {
+                        menu.style.display = 'flex';
+                    }
+                }
+
+                document.addEventListener('click', function() {
+                    document.getElementById('fabMenu').style.display = 'none';
+                });
+
+                function triggerCall(num) {
+                    window.location.href = "app://call?phone=" + encodeURIComponent(num);
+                }
+
+                function triggerShare(link) {
+                    window.location.href = "app://share?link=" + encodeURIComponent(link);
+                }
+                
+                function triggerEmail(email) {
+                    window.location.href = "mailto:" + email;
+                }
+
+                function triggerCopy(text, toastMsg) {
+                    window.location.href = "app://copy?text=" + encodeURIComponent(text) + "&toast=" + encodeURIComponent(toastMsg);
+                    showToast(toastMsg);
+                }
+                
+                function showToast(msg) {
+                    var toast = document.getElementById('toastPop');
+                    toast.innerText = msg;
+                    toast.classList.add('show');
+                    setTimeout(function() {
+                        toast.classList.remove('show');
+                    }, 2500);
+                }
+            </script>
+        </body>
+        </html>
+    """.trimIndent()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(android.graphics.Color.parseColor(backgroundHex)))
+    ) {
+        // Native Premium Responsive Header Top Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(surfaceColor)
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(
+                onClick = { viewModel.navigateToHomeDirectly() },
+                modifier = Modifier.testTag("about_back_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back icon",
+                    tint = primaryColor
+                )
+            }
+            Text(
+                text = if (language == "AR") "حول تطبيق خدمات اليمن" else "About Yemen Services",
+                color = fontColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.width(48.dp))
+        }
+
+        AndroidView(
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                            if (url != null) {
+                                if (url.startsWith("app://call")) {
+                                    val uri = Uri.parse(url)
+                                    val rawPhone = uri.getQueryParameter("phone") ?: settings.supportPhone
+                                    try {
+                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$rawPhone"))
+                                        ctx.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(ctx, "لا يمكن تشغيل الهاتف", Toast.LENGTH_SHORT).show()
+                                    }
+                                    return true
+                                } else if (url.startsWith("app://share")) {
+                                    val uri = Uri.parse(url)
+                                    val link = uri.getQueryParameter("link") ?: settings.downloadUrl
+                                    try {
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_SUBJECT, settings.appName)
+                                            putExtra(Intent.EXTRA_TEXT, "بكل سهولة ويُسر، حمل تطبيق ${settings.appName} الآن للتواصل مع أفضل الكوادر المهنية والطبية في اليمن: $link")
+                                        }
+                                        ctx.startActivity(Intent.createChooser(shareIntent, "مشاركة رابط التطبيق"))
+                                    } catch (e: Exception) {
+                                        Toast.makeText(ctx, "تعذر تفعيل مشاركة الرابط للمشاركة", Toast.LENGTH_SHORT).show()
+                                    }
+                                    return true
+                                } else if (url.startsWith("app://copy")) {
+                                    val uri = Uri.parse(url)
+                                    val textToCopy = uri.getQueryParameter("text") ?: ""
+                                    val toastMsg = uri.getQueryParameter("toast") ?: "تم نسخ النص!"
+                                    
+                                    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("YemenSupport", textToCopy)
+                                    clipboard.setPrimaryClip(clip)
+                                    
+                                    Toast.makeText(ctx, toastMsg, Toast.LENGTH_SHORT).show()
+                                    return true
+                                } else if (url.startsWith("mailto:")) {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(url))
+                                        ctx.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(ctx, "لا يوجد تطبيق بريد تواصل نشط", Toast.LENGTH_SHORT).show()
+                                    }
+                                    return true
+                                }
+                            }
+                            return false
+                        }
+                    }
+                    this.settings.javaScriptEnabled = true
+                    this.settings.domStorageEnabled = true
+                    this.settings.defaultTextEncodingName = "UTF-8"
+                }
+            },
+            update = { webView ->
+                webView.loadDataWithBaseURL(null, htmlData, "text/html", "UTF-8", null)
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("about_app_webview")
+        )
     }
 }

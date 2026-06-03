@@ -16,6 +16,7 @@ sealed class Screen {
     object AdminLogin : Screen()
     object AdminPanel : Screen()
     object SecretSettings : Screen()
+    object AboutApp : Screen()
 }
 
 class YemenViewModel(application: Application) : AndroidViewModel(application) {

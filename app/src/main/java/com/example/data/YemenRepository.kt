@@ -190,6 +190,12 @@ class YemenRepository(private val context: Context) {
             put("isSubscriptionFeatureEnabled", settings.isSubscriptionFeatureEnabled)
             put("smartAssistantSize", settings.smartAssistantSize)
             put("smartAssistantColor", settings.smartAssistantColor)
+            put("downloadUrl", settings.downloadUrl)
+            put("aboutWelcome", settings.aboutWelcome)
+            put("fabIconClass", settings.fabIconClass)
+            put("fabPosition", settings.fabPosition)
+            put("fabSize", settings.fabSize)
+            put("fabColor", settings.fabColor)
         }
         json.put("settings", settingsJson)
 
@@ -293,7 +299,13 @@ class YemenRepository(private val context: Context) {
                     topBarOrder = s.optString("topBarOrder", "HOME,LOGIN,REGISTER_PROVIDER,LANGUAGE,REFRESH"),
                     isSubscriptionFeatureEnabled = s.optBoolean("isSubscriptionFeatureEnabled", true),
                     smartAssistantSize = s.optInt("smartAssistantSize", 48),
-                    smartAssistantColor = s.optString("smartAssistantColor", "DEFAULT")
+                    smartAssistantColor = s.optString("smartAssistantColor", "DEFAULT"),
+                    downloadUrl = s.optString("downloadUrl", "https://example.com/download"),
+                    aboutWelcome = s.optString("aboutWelcome", "مرحباً بك في تطبيق خدمات اليمن المتكامل! نسعى بكل شغف لتقديم أرقى وأبسط قنوات التواصل لربط العملاء بالمهندسين والمقدمين الأفضل بجميع المحافظات."),
+                    fabIconClass = s.optString("fabIconClass", "fas fa-headset"),
+                    fabPosition = s.optString("fabPosition", "bottom-left"),
+                    fabSize = s.optInt("fabSize", 60),
+                    fabColor = s.optString("fabColor", "#E2E8F0")
                 ))
             }
 
