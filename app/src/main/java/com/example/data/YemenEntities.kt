@@ -29,7 +29,23 @@ data class SystemSettingsEntity(
     val fabIconClass: String = "fas fa-headset", // e.g., "fas fa-headset", "fas fa-phone-alt", "fas fa-envelope", "fas fa-share-alt"
     val fabPosition: String = "bottom-left", // "bottom-left", "bottom-right"
     val fabSize: Int = 60, // size in pixels (e.g. 50, 60, 70)
-    val fabColor: String = "#E2E8F0" // HEX color code e.g. #D4AF37
+    val fabColor: String = "#E2E8F0", // HEX color code e.g. #D4AF37
+
+    // Footer & Welcome panel customizations
+    val footerOpacity: Float = 0.9f,
+    val footerFontSize: Int = 11,
+    val welcomeImageBase64: String = "", // Base64 of custom greeting image
+    val welcomeFontSize: Int = 14,
+    val welcomeGravity: String = "center" // "center", "right", "left"
+)
+
+@Entity(tableName = "moderators")
+data class ModeratorEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val username: String,
+    val password: String,
+    val permissions: String = "ALL", // ALL, CATEGORIES, PROVIDERS, REPORTS
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 @Entity(tableName = "categories")

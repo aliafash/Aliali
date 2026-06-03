@@ -105,6 +105,83 @@ class YemenViewModel(application: Application) : AndroidViewModel(application) {
 
     // Admin state
     val adminLoggedIn = MutableStateFlow(false)
+    val loggedInUserRole = MutableStateFlow<String>("GUEST") // GUEST, ADMIN, OWNER, MODERATOR
+    val loggedInUsername = MutableStateFlow<String>("")
+
+    val moderators: StateFlow<List<ModeratorEntity>> = repository.dao.getModeratorsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        // Load remember login state if exists
+        val prefs = application.getSharedPreferences("yemen_prefs", android.content.Context.MODE_PRIVATE)
+        val savedRole = prefs.getString("saved_role", "GUEST") ?: "GUEST"
+        val savedUser = prefs.getString("saved_username", "") ?: ""
+        val savedPass = prefs.getString("saved_password", "") ?: ""
+        
+        if (savedRole != "GUEST" && savedUser.isNotEmpty() && savedPass.isNotEmpty()) {
+            loggedInUserRole.value = savedRole
+            loggedInUsername.value = if (savedRole == "OWNER") "المالك الرئيسي 👑" else if (savedRole == "ADMIN") "المدير العام 👑" else savedUser
+            adminLoggedIn.value = true
+        }
+    }
+
+    fun saveRememberLogin(role: String, user: String, pass: String) {
+        val prefs = getApplication<Application>().getSharedPreferences("yemen_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putString("saved_role", role)
+            putString("saved_username", user)
+            putString("saved_password", pass)
+            apply()
+        }
+    }
+
+    fun clearRememberLogin() {
+        val prefs = getApplication<Application>().getSharedPreferences("yemen_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+        loggedInUserRole.value = "GUEST"
+        loggedInUsername.value = ""
+        adminLoggedIn.value = false
+    }
+
+    fun addModerator(username: String, pass: String, permissions: String = "ALL") {
+        viewModelScope.launch {
+            repository.dao.insertModerator(ModeratorEntity(
+                username = username,
+                password = pass,
+                permissions = permissions
+            ))
+        }
+    }
+
+    fun updateModerator(id: Int, username: String, pass: String, permissions: String = "ALL") {
+        viewModelScope.launch {
+            repository.dao.insertModerator(ModeratorEntity(
+                id = id,
+                username = username,
+                password = pass,
+                permissions = permissions
+            ))
+        }
+    }
+
+    fun deleteModerator(id: Int) {
+        viewModelScope.launch {
+            repository.dao.deleteModeratorById(id)
+        }
+    }
+
+    fun updateCategory(id: Int, nameAr: String, nameEn: String, iconName: String, parentId: Int?, displayOrder: Int = 0) {
+        viewModelScope.launch {
+            repository.dao.insertCategory(CategoryEntity(
+                id = id,
+                parentId = parentId,
+                nameAr = nameAr,
+                nameEn = nameEn,
+                iconName = iconName,
+                displayOrder = displayOrder
+            ))
+        }
+    }
 
     fun navigateTo(screen: Screen) {
         val current = _navigationStack.value.toMutableList()

@@ -196,6 +196,11 @@ class YemenRepository(private val context: Context) {
             put("fabPosition", settings.fabPosition)
             put("fabSize", settings.fabSize)
             put("fabColor", settings.fabColor)
+            put("footerOpacity", settings.footerOpacity.toDouble())
+            put("footerFontSize", settings.footerFontSize)
+            put("welcomeImageBase64", settings.welcomeImageBase64)
+            put("welcomeFontSize", settings.welcomeFontSize)
+            put("welcomeGravity", settings.welcomeGravity)
         }
         json.put("settings", settingsJson)
 
@@ -305,7 +310,12 @@ class YemenRepository(private val context: Context) {
                     fabIconClass = s.optString("fabIconClass", "fas fa-headset"),
                     fabPosition = s.optString("fabPosition", "bottom-left"),
                     fabSize = s.optInt("fabSize", 60),
-                    fabColor = s.optString("fabColor", "#E2E8F0")
+                    fabColor = s.optString("fabColor", "#E2E8F0"),
+                    footerOpacity = s.optDouble("footerOpacity", 0.9).toFloat(),
+                    footerFontSize = s.optInt("footerFontSize", 11),
+                    welcomeImageBase64 = s.optString("welcomeImageBase64", ""),
+                    welcomeFontSize = s.optInt("welcomeFontSize", 14),
+                    welcomeGravity = s.optString("welcomeGravity", "center")
                 ))
             }
 

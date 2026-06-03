@@ -113,4 +113,14 @@ interface YemenDao {
 
     @Query("DELETE FROM app_cities WHERE nameAr = :nameAr")
     suspend fun deleteCityByName(nameAr: String)
+
+    // --- Moderators ---
+    @Query("SELECT * FROM moderators ORDER BY username ASC")
+    fun getModeratorsFlow(): Flow<List<ModeratorEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertModerator(moderator: ModeratorEntity): Long
+
+    @Query("DELETE FROM moderators WHERE id = :id")
+    suspend fun deleteModeratorById(id: Int)
 }

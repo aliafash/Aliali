@@ -261,9 +261,9 @@ fun YemenMainView(viewModel: YemenViewModel) {
                     if (settings.footerText.isNotEmpty()) {
                         Text(
                             text = settings.footerText,
-                            color = primaryColor.copy(alpha = 0.9f),
+                            color = primaryColor.copy(alpha = settings.footerOpacity),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
+                            fontSize = settings.footerFontSize.sp,
                             modifier = Modifier.clickable {
                                 // Call intent trigger
                                 try {
