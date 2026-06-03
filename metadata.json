@@ -1,0 +1,6 @@
+{
+  "name": "خدمات اليمن",
+  "description": "تطبيق خدمات اليمن المتكامل لربط مقدمي الخدمات بالعملاء مع مزامنة لحظية وخيارات تحكم متقدمة",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
