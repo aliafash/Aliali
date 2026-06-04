@@ -16,9 +16,12 @@ import androidx.room.RoomDatabase
         ReportEntity::class,
         LoyaltyPointsEntity::class,
         CityEntity::class,
-        ModeratorEntity::class
+        ModeratorEntity::class,
+        SubscriptionRequestEntity::class,
+        DeviceWhitelistEntity::class,
+        ChatMessageEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class YemenDatabase : RoomDatabase() {

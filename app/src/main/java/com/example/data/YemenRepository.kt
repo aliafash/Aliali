@@ -35,7 +35,9 @@ class YemenRepository(private val context: Context) {
     val bannersFlow: Flow<List<BannerEntity>> = dao.getActiveBannersFlow()
     val reportsFlow: Flow<List<ReportEntity>> = dao.getReportsFlow()
     val loyaltyPointsFlow: Flow<LoyaltyPointsEntity?> = dao.getLoyaltyPointsFlow()
-    val citiesFlow: Flow<List<CityEntity>> = dao.getCitiesFlow()
+        val citiesFlow: Flow<List<CityEntity>> = dao.getCitiesFlow()
+    val subscriptionRequestsFlow: Flow<List<SubscriptionRequestEntity>> = dao.getSubscriptionRequestsFlow()
+    val deviceWhitelistFlow: Flow<List<DeviceWhitelistEntity>> = dao.getDeviceWhitelistFlow()
 
     fun getSubCategoriesFlow(parentId: Int): Flow<List<CategoryEntity>> {
         return dao.getSubCategoriesFlow(parentId)
@@ -201,6 +203,28 @@ class YemenRepository(private val context: Context) {
             put("welcomeImageBase64", settings.welcomeImageBase64)
             put("welcomeFontSize", settings.welcomeFontSize)
             put("welcomeGravity", settings.welcomeGravity)
+            
+            // New settings fields
+            put("primaryColorHex", settings.primaryColorHex)
+            put("secondaryColorHex", settings.secondaryColorHex)
+            put("backgroundColorHex", settings.backgroundColorHex)
+            put("surfaceColorHex", settings.surfaceColorHex)
+            put("inputFontColorHex", settings.inputFontColorHex)
+            put("inputFontWeight", settings.inputFontWeight)
+            put("inputFontFamily", settings.inputFontFamily)
+            put("socialShareLink", settings.socialShareLink)
+            put("maxRadiusLimit", settings.maxRadiusLimit)
+            put("isWelcomeNotifyEnabled", settings.isWelcomeNotifyEnabled)
+            put("welcomeNotifyMsg", settings.welcomeNotifyMsg)
+            put("isAppointmentNotifyEnabled", settings.isAppointmentNotifyEnabled)
+            put("appointmentNotifyMsg", settings.appointmentNotifyMsg)
+            put("isBillingNotifyEnabled", settings.isBillingNotifyEnabled)
+            put("billingNotifyMsg", settings.billingNotifyMsg)
+            put("notificationSendHour", settings.notificationSendHour)
+            put("isChatFeatureEnabled", settings.isChatFeatureEnabled)
+            put("isChatFloatingIconVisible", settings.isChatFloatingIconVisible)
+            put("chatFloatingIconSize", settings.chatFloatingIconSize)
+            put("chatFloatingIconSymbol", settings.chatFloatingIconSymbol)
         }
         json.put("settings", settingsJson)
 
@@ -238,6 +262,7 @@ class YemenRepository(private val context: Context) {
                 put("isRecommended", p.isRecommended)
                 put("isSubscribed", p.isSubscribed)
                 put("isActive", p.isActive)
+                put("isChatActive", p.isChatActive)
             })
         }
         json.put("providers", provArray)
@@ -258,6 +283,7 @@ class YemenRepository(private val context: Context) {
                 put("status", pe.status)
                 put("rejectionReason", pe.rejectionReason ?: "")
                 put("createdAt", pe.createdAt)
+                put("isChatActive", pe.isChatActive)
             })
         }
         json.put("pending", pendArray)
@@ -315,7 +341,29 @@ class YemenRepository(private val context: Context) {
                     footerFontSize = s.optInt("footerFontSize", 11),
                     welcomeImageBase64 = s.optString("welcomeImageBase64", ""),
                     welcomeFontSize = s.optInt("welcomeFontSize", 14),
-                    welcomeGravity = s.optString("welcomeGravity", "center")
+                    welcomeGravity = s.optString("welcomeGravity", "center"),
+                    
+                    // Restore new settings fields
+                    primaryColorHex = s.optString("primaryColorHex", "#2563EB"),
+                    secondaryColorHex = s.optString("secondaryColorHex", "#DC2626"),
+                    backgroundColorHex = s.optString("backgroundColorHex", "#0B0F19"),
+                    surfaceColorHex = s.optString("surfaceColorHex", "#1E293B"),
+                    inputFontColorHex = s.optString("inputFontColorHex", "#FFFFFF"),
+                    inputFontWeight = s.optString("inputFontWeight", "BOLD"),
+                    inputFontFamily = s.optString("inputFontFamily", "DEFAULT"),
+                    socialShareLink = s.optString("socialShareLink", "https://t.me/yemenservices"),
+                    maxRadiusLimit = s.optInt("maxRadiusLimit", 100),
+                    isWelcomeNotifyEnabled = s.optBoolean("isWelcomeNotifyEnabled", true),
+                    welcomeNotifyMsg = s.optString("welcomeNotifyMsg", "أهلاً بك في دليل خدمات اليمن!"),
+                    isAppointmentNotifyEnabled = s.optBoolean("isAppointmentNotifyEnabled", true),
+                    appointmentNotifyMsg = s.optString("appointmentNotifyMsg", "تنبيه: يرجى الحفاظ على جودة وسرعة تلبية طلبات التواصل."),
+                    isBillingNotifyEnabled = s.optBoolean("isBillingNotifyEnabled", true),
+                    billingNotifyMsg = s.optString("billingNotifyMsg", "تنبيه: تم طلب تسوية قيمة الاشتراك الشهري لمقدمي الخدمات."),
+                    notificationSendHour = s.optInt("notificationSendHour", 12),
+                    isChatFeatureEnabled = s.optBoolean("isChatFeatureEnabled", true),
+                    isChatFloatingIconVisible = s.optBoolean("isChatFloatingIconVisible", true),
+                    chatFloatingIconSize = s.optInt("chatFloatingIconSize", 48),
+                    chatFloatingIconSymbol = s.optString("chatFloatingIconSymbol", "chat")
                 ))
             }
 
@@ -355,7 +403,8 @@ class YemenRepository(private val context: Context) {
                         isPinned = p.optBoolean("isPinned", false),
                         isRecommended = p.optBoolean("isRecommended", false),
                         isSubscribed = p.optBoolean("isSubscribed", false),
-                        isActive = p.optBoolean("isActive", true)
+                        isActive = p.optBoolean("isActive", true),
+                        isChatActive = p.optBoolean("isChatActive", true)
                     ))
                 }
             }
@@ -376,7 +425,8 @@ class YemenRepository(private val context: Context) {
                         imageUrl = pe.getString("imageUrl"),
                         status = pe.optString("status", "pending"),
                         rejectionReason = pe.optString("rejectionReason", "").ifEmpty { null },
-                        createdAt = pe.optLong("createdAt", System.currentTimeMillis())
+                        createdAt = pe.optLong("createdAt", System.currentTimeMillis()),
+                        isChatActive = pe.optBoolean("isChatActive", true)
                     ))
                 }
             }
@@ -403,6 +453,29 @@ class YemenRepository(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    // --- Scoped Storage JSON Document Backup Helper ---
+    fun saveBackupToFolder(jsonContent: String, folderUri: android.net.Uri): String {
+        return try {
+            val pickedDir = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, folderUri)
+                ?: return "فشل قراءة صلاحية الوصول للمجلد المختار ❌"
+            if (!pickedDir.canWrite()) {
+                return "فشل كتابة الملف: صلاحية الكتابة للمجلد منزوعة ❌"
+            }
+            val fileName = "YemenServices_DB_Backup_${System.currentTimeMillis()}.json"
+            val file = pickedDir.createFile("application/json", fileName)
+                ?: return "عذراً، فشل إنشاء الملف على الذاكرة الخارجية ❌"
+            
+            context.contentResolver.openOutputStream(file.uri)?.use { out ->
+                out.write(jsonContent.toByteArray())
+                out.flush()
+            }
+            "تم أخذ نسخة احتياطية بنجاح باسم:\n$fileName ✅"
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
+            "خطأ فادح أثناء التخزين على الهاتف: ${e.localizedMessage}"
         }
     }
 

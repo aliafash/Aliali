@@ -52,6 +52,8 @@ class YemenViewModel(application: Application) : AndroidViewModel(application) {
     val searchDistrict = MutableStateFlow("")
     val searchPhone = MutableStateFlow("")
     val searchRadius = MutableStateFlow(10f) // default radius search 10km
+    val searchMinRating = MutableStateFlow(0f) // min rating stars
+    val searchCategoryId = MutableStateFlow(0) // 0 means any category
 
     // Active Banner Index
     private val _currentBannerIndex = MutableStateFlow(0)
@@ -220,14 +222,58 @@ class YemenViewModel(application: Application) : AndroidViewModel(application) {
         searchQuery,
         searchCity,
         searchDistrict,
-        searchPhone
-    ) { providers, query, city, district, phone ->
+        searchPhone,
+        searchRadius,
+        searchMinRating,
+        searchCategoryId
+    ) { flowsArray ->
+        val providers = flowsArray[0] as List<ProviderEntity>
+        val query = flowsArray[1] as String
+        val city = flowsArray[2] as String
+        val district = flowsArray[3] as String
+        val phone = flowsArray[4] as String
+        val radius = flowsArray[5] as Float
+        val minRating = flowsArray[6] as Float
+        val catId = flowsArray[7] as Int
+
         providers.filter { p ->
             val matchesQuery = query.isEmpty() || p.name.contains(query, ignoreCase = true) || p.address.contains(query, ignoreCase = true)
             val matchesCity = city.isEmpty() || p.address.contains(city, ignoreCase = true)
             val matchesDistrict = district.isEmpty() || p.district.contains(district, ignoreCase = true)
             val matchesPhone = phone.isEmpty() || p.phone.contains(phone)
-            matchesQuery && matchesCity && matchesDistrict && matchesPhone
+            val matchesRating = p.rating >= minRating
+            val matchesCategory = catId == 0 || p.categoryId == catId
+
+            // GPS Distance Calculation (Haversine Formula)
+            var matchesRadius = true
+            if (radius > 0f) {
+                p.gps?.let { gpsStr ->
+                    try {
+                        val parts = gpsStr.split(",")
+                        if (parts.size == 2) {
+                            val pLat = parts[0].trim().toDouble()
+                            val pLon = parts[1].trim().toDouble()
+                            // Center of Sana'a as baseline coordinates (default user position)
+                            val uLat = 15.3694
+                            val uLon = 44.1910
+                            
+                            val rEarth = 6371.0 // Earth radius in KM
+                            val latDistance = Math.toRadians(pLat - uLat)
+                            val lonDistance = Math.toRadians(pLon - uLon)
+                            val a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2) +
+                                    Math.cos(Math.toRadians(uLat)) * Math.cos(Math.toRadians(pLat)) *
+                                    Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2)
+                            val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+                            val distance = rEarth * c
+                            matchesRadius = distance <= radius
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+
+            matchesQuery && matchesCity && matchesDistrict && matchesPhone && matchesRating && matchesCategory && matchesRadius
         }.sortedWith(compareByDescending<ProviderEntity> { it.isPinned }
             .thenByDescending { it.isSubscribed }
             .thenByDescending { it.rating })
@@ -456,6 +502,41 @@ class YemenViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // --- Realtime Chat Messages Flow ---
+    val allChatMessages: StateFlow<List<ChatMessageEntity>> = repository.dao.getAllChatMessagesFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun getChatMessagesForReceiver(id: Int): Flow<List<ChatMessageEntity>> {
+        return repository.dao.getChatMessagesByReceiverFlow(id)
+    }
+
+    fun sendChatMessage(senderName: String, receiverId: Int, messageText: String, isFromUser: Boolean) {
+        viewModelScope.launch {
+            repository.dao.insertChatMessage(ChatMessageEntity(
+                senderName = senderName,
+                receiverId = receiverId,
+                messageText = messageText,
+                isFromUser = isFromUser
+            ))
+        }
+    }
+
+    fun cleanOldChats(days: Int) {
+        viewModelScope.launch {
+            val cutoff = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+            repository.dao.deleteOldChatMessages(cutoff)
+        }
+    }
+
+    fun toggleProviderChat(providerId: Int, isEnabled: Boolean) {
+        viewModelScope.launch {
+            val p = repository.dao.getProviderById(providerId)
+            if (p != null) {
+                repository.dao.insertProvider(p.copy(isChatActive = isEnabled))
+            }
+        }
+    }
+
     // --- DB Backup & Restore ---
     private val _backupStatusMessage = MutableStateFlow<String?>(null)
     val backupStatusMessage: StateFlow<String?> = _backupStatusMessage.asStateFlow()
@@ -490,6 +571,18 @@ class YemenViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 _backupStatusMessage.value = "فشل الاستعادة: ${e.message}"
+            }
+        }
+    }
+
+    fun performFolderBackup(folderUri: android.net.Uri) {
+        viewModelScope.launch {
+            try {
+                val json = repository.exportDatabaseToJson()
+                val msg = repository.saveBackupToFolder(json, folderUri)
+                _backupStatusMessage.value = msg
+            } catch (p: Exception) {
+                _backupStatusMessage.value = "عذراً، حدث خطأ أثناء النسخ الاحتياطي: ${p.message}"
             }
         }
     }

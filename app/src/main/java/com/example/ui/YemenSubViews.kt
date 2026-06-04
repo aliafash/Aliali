@@ -807,6 +807,7 @@ fun ProviderDetailScreen(
     language: String
 ) {
     val context = LocalContext.current
+    val settings by viewModel.settings.collectAsState()
     val reviewsFlow = viewModel.getReviewsFlow(provider.id).collectAsState(initial = emptyList<ReviewEntity>())
     val reviews = reviewsFlow.value
 
@@ -993,6 +994,44 @@ fun ProviderDetailScreen(
                         Icon(imageVector = Icons.Default.Map, contentDescription = "GPS Map location", tint = primaryColor)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("خرائط قوقل GPS وموقع المكتب", color = primaryColor, fontSize = 12.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Share Provider Details and Download Link button
+                    Button(
+                        onClick = {
+                            try {
+                                val downloadUrl = settings.socialShareLink.ifEmpty { "https://yemen-services.aistudio.com" }
+                                val shareText = """
+                                    خدمات اليمن الكوادر والمهنيين 🇾🇪
+                                    مقدم الخدمة: ${provider.name}
+                                    المديرية والحي: ${provider.district}
+                                    الهاتف: ${provider.phone}
+                                    العنوان: ${provider.address}
+                                    حمل التطبيق من هَنُا ومشاركتنا: $downloadUrl
+                                """.trimIndent()
+
+                                val sendIntent: Intent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                    type = "text/plain"
+                                }
+                                val shareIntent = Intent.createChooser(sendIntent, "مشاركة مقدم الخدمة عبر:")
+                                context.startActivity(shareIntent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "فشل بدء مشاركة البيانات عبر النظام", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("share_provider_button")
+                    ) {
+                        Icon(imageVector = Icons.Default.Share, contentDescription = "Share", tint = Color.Black)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("مشاركة ملف مقدم الخدمة والتطبيق 🔗", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1243,7 +1282,12 @@ fun ProviderRegistrationScreen(
     var regPhone by remember { mutableStateOf("") }
     var regAddress by remember { mutableStateOf("") }
     var regDistrict by remember { mutableStateOf("") }
-    var regSelectedCategoryId by remember { mutableStateOf(activeSubCategories.firstOrNull()?.id ?: 0) }
+    var regSelectedCategoryId by remember { mutableStateOf(0) }
+    LaunchedEffect(activeSubCategories) {
+        if (regSelectedCategoryId == 0 && activeSubCategories.isNotEmpty()) {
+            regSelectedCategoryId = activeSubCategories.first().id
+        }
+    }
     var regGps by remember { mutableStateOf("15.3694,44.1910") } // default صنعاء coordinates
     var regImageUrl by remember { mutableStateOf("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200") } // Sample base portrait image
     var regIdCardUrl by remember { mutableStateOf<String?>("https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?q=80&w=200") } // Sample card fallback
@@ -1382,18 +1426,27 @@ fun ProviderRegistrationScreen(
 
                 // Category dropdown filter selection
                 val selectedCategory = activeSubCategories.find { it.id == regSelectedCategoryId }
-                Box(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { dropdownExpanded = true }
+                ) {
                     OutlinedTextField(
                         value = selectedCategory?.nameAr ?: "اختر القسم الفني المعتمد",
                         onValueChange = {},
                         readOnly = true,
+                        enabled = false,
                         label = { Text("القسم والخدمة الرئيسية (إجباري)", color = primaryColor.copy(alpha = 0.8f)) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { dropdownExpanded = true }
                             .testTag("reg_category_dropdown"),
-                        trailingIcon = { Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = "dropdown") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = primaryColor, unfocusedBorderColor = secondaryColor, focusedTextColor = Color.White)
+                        trailingIcon = { Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = "dropdown", tint = primaryColor) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = Color.White,
+                            disabledBorderColor = secondaryColor,
+                            disabledLabelColor = primaryColor,
+                            disabledTrailingIconColor = primaryColor
+                        )
                     )
                     DropdownMenu(
                         expanded = dropdownExpanded,
@@ -2211,32 +2264,34 @@ fun AdminPanelScreen(
                     Text(text = "لوحة التحكم الرئيسية للأدمن 👑", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
 
-                // Vertical Tab view switches
+                // Dynamic, role-filtered and secure tabs mapper
+                val adminTabs = remember(loggedInUserRole, pendingList.size) {
+                    val tabsList = mutableListOf<Pair<Int, String>>()
+                    tabsList.add(0 to "⏳ طلبات التسجيل (${pendingList.size})")
+                    tabsList.add(1 to "✍️ إضافة يدوية")
+                    if (loggedInUserRole == "OWNER") {
+                        tabsList.add(2 to "⭐ إدارة وتثبيت")
+                        tabsList.add(3 to "📌 البلاغات والتقارير")
+                        tabsList.add(4 to "💾 نسخ وقاعدة إحصاء")
+                    }
+                    tabsList.add(5 to "📁 إدارة الأقسام")
+                    tabsList.add(6 to "⚙️ المشرفون والخصائص")
+                    tabsList.add(7 to "💬 مراقبة الدعم")
+                    tabsList
+                }
+
                 ScrollableTabRow(
-                    selectedTabIndex = activeTabIndex,
+                    selectedTabIndex = adminTabs.indexOfFirst { it.first == activeTabIndex }.coerceAtLeast(0),
                     containerColor = surfaceColor,
                     contentColor = primaryColor
                 ) {
-                    Tab(selected = activeTabIndex == 0, onClick = { activeTabIndex = 0 }) {
-                        Text("⏳ طلبات التسجيل (${pendingList.size})", color = fontColor, fontSize = 11.sp, modifier = Modifier.padding(10.dp))
-                    }
-                    Tab(selected = activeTabIndex == 1, onClick = { activeTabIndex = 1 }) {
-                        Text("✍️ إضافة يدوية", color = fontColor, fontSize = 11.sp, modifier = Modifier.padding(10.dp))
-                    }
-                    Tab(selected = activeTabIndex == 2, onClick = { activeTabIndex = 2 }) {
-                        Text("⭐ إدارة وتثبيت", color = fontColor, fontSize = 11.sp, modifier = Modifier.padding(10.dp))
-                    }
-                    Tab(selected = activeTabIndex == 3, onClick = { activeTabIndex = 3 }) {
-                        Text("📌 البلاغات والتقارير", color = fontColor, fontSize = 11.sp, modifier = Modifier.padding(10.dp))
-                    }
-                    Tab(selected = activeTabIndex == 4, onClick = { activeTabIndex = 4 }) {
-                        Text("💾 نسخ وقاعدة إحصاء", color = fontColor, fontSize = 11.sp, modifier = Modifier.padding(10.dp))
-                    }
-                    Tab(selected = activeTabIndex == 5, onClick = { activeTabIndex = 5 }) {
-                        Text("📁 إدارة الأقسام", color = fontColor, fontSize = 11.sp, modifier = Modifier.padding(10.dp))
-                    }
-                    Tab(selected = activeTabIndex == 6, onClick = { activeTabIndex = 6 }) {
-                        Text("⚙️ المشرفون والتذييل", color = fontColor, fontSize = 11.sp, modifier = Modifier.padding(10.dp))
+                    adminTabs.forEach { tab ->
+                        Tab(
+                            selected = activeTabIndex == tab.first,
+                            onClick = { activeTabIndex = tab.first }
+                        ) {
+                            Text(tab.second, color = fontColor, fontSize = 11.sp, modifier = Modifier.padding(8.dp))
+                        }
                     }
                 }
             }
@@ -2905,6 +2960,398 @@ fun AdminPanelScreen(
                                     }
                                 }
                             }
+
+                            // --- 🎨 Visual Themes & Primary Colors Customizer ---
+                            item {
+                                Divider(color = secondaryColor.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 8.dp))
+                                Text("🎨 محدد الهوية البصرية وألوان التطبيق (Theme):", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            item {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = surfaceColor.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Text("أدخل كود الـ Hex للألوان مباشرة لتغيير هوية التطبيق فورياً:", color = fontColor, fontSize = 11.sp)
+                                        
+                                        var primaryHex by remember { mutableStateOf(settings.primaryColorHex) }
+                                        var secondaryHex by remember { mutableStateOf(settings.secondaryColorHex) }
+                                        var bgHex by remember { mutableStateOf(settings.backgroundColorHex) }
+                                        var surfaceHex by remember { mutableStateOf(settings.surfaceColorHex) }
+                                        var inputFontHex by remember { mutableStateOf(settings.inputFontColorHex) }
+
+                                        OutlinedTextField(
+                                            value = primaryHex,
+                                            onValueChange = { primaryHex = it; viewModel.updateSettings(settings.copy(primaryColorHex = it)) },
+                                            label = { Text("اللون الأساسي للأزرار والرموز (Primary Color Hex)", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        OutlinedTextField(
+                                            value = secondaryHex,
+                                            onValueChange = { secondaryHex = it; viewModel.updateSettings(settings.copy(secondaryColorHex = it)) },
+                                            label = { Text("اللون الثانوي والحدود الفرعية (Secondary Color Hex)", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        OutlinedTextField(
+                                            value = bgHex,
+                                            onValueChange = { bgHex = it; viewModel.updateSettings(settings.copy(backgroundColorHex = it)) },
+                                            label = { Text("لون خلفية التطبيق (Background Color Hex)", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        OutlinedTextField(
+                                            value = surfaceHex,
+                                            onValueChange = { surfaceHex = it; viewModel.updateSettings(settings.copy(surfaceColorHex = it)) },
+                                            label = { Text("لون البطاقات والقوائم الفرعية (Surface Color Hex)", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        Divider(color = secondaryColor.copy(alpha = 0.2f))
+
+                                        Text("🔤 تخصيص خط وطباعة حقول الكتابة والمدخلات:", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+
+                                        OutlinedTextField(
+                                            value = inputFontHex,
+                                            onValueChange = { inputFontHex = it; viewModel.updateSettings(settings.copy(inputFontColorHex = it)) },
+                                            label = { Text("لون خط الكتابة (Input Font Color Hex)", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        Text("عائلة الخط المعتمدة لحقول الإدخال:", color = fontColor, fontSize = 11.sp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            listOf("DEFAULT", "MONOSPACE", "SERIF", "SANS_SERIF").forEach { family ->
+                                                FilterChip(
+                                                    selected = settings.inputFontFamily == family,
+                                                    onClick = { viewModel.updateSettings(settings.copy(inputFontFamily = family)) },
+                                                    label = { Text(family, fontSize = 9.sp) },
+                                                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = primaryColor, labelColor = fontColor)
+                                                )
+                                            }
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Checkbox(
+                                                checked = settings.inputFontWeight == "BOLD",
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(inputFontWeight = if (it) "BOLD" else "NORMAL")) }
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("جعل مدخلات حقول الكتابة عريضة (Bold) دائماً", color = fontColor, fontSize = 11.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // --- 📱 Customizable App Icons & Floating Bubbles Sizes ---
+                            item {
+                                Divider(color = secondaryColor.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 8.dp))
+                                Text("📱 التحكم بحجم وألوان العناصر العائمة والأيقونات:", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            item {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = surfaceColor.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        // App Info Icon size control
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = settings.isAppInfoVisible,
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(isAppInfoVisible = it)) }
+                                            )
+                                            Text("إظهار أيقونة معلومات التطبيق والشركة", color = fontColor, fontSize = 11.sp)
+                                        }
+
+                                        Text("حجم أيقونة معلومات التطبيق: ${settings.appInfoSize} dp", color = fontColor, fontSize = 11.sp)
+                                        Slider(
+                                            value = settings.appInfoSize.toFloat(),
+                                            onValueChange = { viewModel.updateSettings(settings.copy(appInfoSize = it.toInt())) },
+                                            valueRange = 16f..72f,
+                                            colors = SliderDefaults.colors(thumbColor = primaryColor)
+                                        )
+
+                                        Divider(color = secondaryColor.copy(alpha = 0.2f))
+
+                                        // Assistant bubble size and color control
+                                        Text("حجم زر المساعد الذكي العائم: ${settings.smartAssistantSize} dp", color = fontColor, fontSize = 11.sp)
+                                        Slider(
+                                            value = settings.smartAssistantSize.toFloat(),
+                                            onValueChange = { viewModel.updateSettings(settings.copy(smartAssistantSize = it.toInt())) },
+                                            valueRange = 16f..90f,
+                                            colors = SliderDefaults.colors(thumbColor = primaryColor)
+                                        )
+
+                                        var assistantColorStr by remember { mutableStateOf(settings.smartAssistantColor) }
+                                        OutlinedTextField(
+                                            value = assistantColorStr,
+                                            onValueChange = { assistantColorStr = it; viewModel.updateSettings(settings.copy(smartAssistantColor = it)) },
+                                            label = { Text("كود لون دائرة المساعد الذكي (Hex/DEFAULT)", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        Divider(color = secondaryColor.copy(alpha = 0.2f))
+
+                                        // Chat bubble size and visibility
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = settings.isChatFloatingIconVisible,
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(isChatFloatingIconVisible = it)) }
+                                            )
+                                            Text("عرض أيقونة الدعم الفني المباشر العائمة فوق زر المعلومات", color = fontColor, fontSize = 11.sp)
+                                        }
+
+                                        Text("حجم أيقونة الدردشة والدعم العائم: ${settings.chatFloatingIconSize} dp", color = fontColor, fontSize = 11.sp)
+                                        Slider(
+                                            value = settings.chatFloatingIconSize.toFloat(),
+                                            onValueChange = { viewModel.updateSettings(settings.copy(chatFloatingIconSize = it.toInt())) },
+                                            valueRange = 16f..90f,
+                                            colors = SliderDefaults.colors(thumbColor = primaryColor)
+                                        )
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = settings.isChatFeatureEnabled,
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(isChatFeatureEnabled = it)) }
+                                            )
+                                            Text("تمكين ميزة المحادثة الفورية وتداولها عبر التطبيق", color = fontColor, fontSize = 11.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // --- 🗺️ Map Radius Search & Maintenance Mode Configuration ---
+                            item {
+                                Divider(color = secondaryColor.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 8.dp))
+                                Text("🗺️ حدود البحث الجغرافي ووضعية الصيانة العامة:", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            item {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = surfaceColor.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Text("الحد الأقصى الافتراضي لنطاق البحث في الخريطة: ${settings.maxRadiusLimit} كم", color = fontColor, fontSize = 11.sp)
+                                        Slider(
+                                            value = settings.maxRadiusLimit.toFloat(),
+                                            onValueChange = { viewModel.updateSettings(settings.copy(maxRadiusLimit = it.toInt())) },
+                                            valueRange = 5f..200f,
+                                            colors = SliderDefaults.colors(thumbColor = primaryColor)
+                                        )
+
+                                        Divider(color = secondaryColor.copy(alpha = 0.2f))
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = settings.isMaintenanceMode,
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(isMaintenanceMode = it)) }
+                                            )
+                                            Text("⚠️ تفعيل وضع الصيانة الاستثنائية لجميع الزائرين", color = fontColor, fontSize = 11.sp)
+                                        }
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = settings.isVoiceNotesEnabled,
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(isVoiceNotesEnabled = it)) }
+                                            )
+                                            Text("🎙️ تمكين إضافة الأوصاف والطلبات عبر التسجيل الصوتي والـ Mic", color = fontColor, fontSize = 11.sp)
+                                        }
+
+                                        var shareLinkStr by remember { mutableStateOf(settings.socialShareLink) }
+                                        OutlinedTextField(
+                                            value = shareLinkStr,
+                                            onValueChange = { shareLinkStr = it; viewModel.updateSettings(settings.copy(socialShareLink = it)) },
+                                            label = { Text("رابط تحميل ومشاركة التطبيق عبر منصات التواصل", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // --- 📢 Dynamic Banner Ads Slider Customizer ---
+                            item {
+                                Divider(color = secondaryColor.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 8.dp))
+                                Text("📢 إدارة لافتات الإعلانات الممولة (Banner Ads):", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            item {
+                                val activeBannersList by viewModel.activeBanners.collectAsState()
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = surfaceColor.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Text("أضف لافتة إعلانية جديدة:", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                        
+                                        var newBannerImg by remember { mutableStateOf("") }
+                                        var newBannerLink by remember { mutableStateOf("") }
+                                        var newBannerSize by remember { mutableStateOf("medium") }
+                                        var newBannerDur by remember { mutableStateOf(5) }
+
+                                        OutlinedTextField(
+                                            value = newBannerImg,
+                                            onValueChange = { newBannerImg = it },
+                                            label = { Text("رابط صورة اللافتة الإعلانية (Image URL)", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        OutlinedTextField(
+                                            value = newBannerLink,
+                                            onValueChange = { newBannerLink = it },
+                                            label = { Text("رابط توجيه ومشاركة الإعلان (مقدم خدمة أو خارجي)", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        Text("حجم ومساحة اللافتة المعتمدة:", color = fontColor, fontSize = 11.sp)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            listOf("small", "medium", "large").forEach { sz ->
+                                                FilterChip(
+                                                    selected = newBannerSize == sz,
+                                                    onClick = { newBannerSize = sz },
+                                                    label = { Text(sz, fontSize = 9.sp) }
+                                                )
+                                            }
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                if (newBannerImg.trim().isNotEmpty()) {
+                                                    viewModel.addBanner(newBannerImg.trim(), newBannerLink.trim(), newBannerSize, newBannerDur)
+                                                    newBannerImg = ""
+                                                    newBannerLink = ""
+                                                    Toast.makeText(context, "تمت إضافة لافتة الإعلان الممولة بنجاح!", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text("إضافة ونشر اللافتة الإعلانية 📢", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                        }
+
+                                        Divider(color = secondaryColor.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 4.dp))
+                                        
+                                        Text("اللافتات النشطة حالياً بالتطبيق (${activeBannersList.size}):", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                        activeBannersList.forEach { b ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(secondaryColor.copy(alpha = 0.15f))
+                                                    .padding(6.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(text = "رابط: ${b.linkUrl ?: "مفتوح"}", color = fontColor, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                    Text(text = "حجم: ${b.sizeType} | المدة: ${b.durationSec}ث", color = primaryColor, fontSize = 9.sp)
+                                                }
+                                                IconButton(onClick = { viewModel.deleteBanner(b.id) }) {
+                                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // --- 🔔 Customized Notification Text templates ---
+                            item {
+                                Divider(color = secondaryColor.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 8.dp))
+                                Text("🔔 نماذج رسائل التنبيهات وجدولة الإشعارات التلقائية:", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            item {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = surfaceColor.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Text("خصص نصوص الرسائل التي ترسل تلقائياً للمستخدمين والكوادر:", color = fontColor, fontSize = 11.sp)
+
+                                        // Welcome notification setup
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = settings.isWelcomeNotifyEnabled,
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(isWelcomeNotifyEnabled = it)) }
+                                            )
+                                            Text("تفعيل رسالة الترحيب والانضمام التلقائية", color = fontColor, fontSize = 11.sp)
+                                        }
+                                        var welcomeMsgStr by remember { mutableStateOf(settings.welcomeNotifyMsg) }
+                                        OutlinedTextField(
+                                            value = welcomeMsgStr,
+                                            onValueChange = { welcomeMsgStr = it; viewModel.updateSettings(settings.copy(welcomeNotifyMsg = it)) },
+                                            label = { Text("نص رسالة الترحيب والانضمام", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        Divider(color = secondaryColor.copy(alpha = 0.2f))
+
+                                        // Appointments notification setup
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = settings.isAppointmentNotifyEnabled,
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(isAppointmentNotifyEnabled = it)) }
+                                            )
+                                            Text("تفعيل تذكير المواعيد وحجوزات المهنيين", color = fontColor, fontSize = 11.sp)
+                                        }
+                                        var appointMsgStr by remember { mutableStateOf(settings.appointmentNotifyMsg) }
+                                        OutlinedTextField(
+                                            value = appointMsgStr,
+                                            onValueChange = { appointMsgStr = it; viewModel.updateSettings(settings.copy(appointmentNotifyMsg = it)) },
+                                            label = { Text("نص إشعار تذكير الموعد", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        Divider(color = secondaryColor.copy(alpha = 0.2f))
+
+                                        // Billing billing alert setup
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Checkbox(
+                                                checked = settings.isBillingNotifyEnabled,
+                                                onCheckedChange = { viewModel.updateSettings(settings.copy(isBillingNotifyEnabled = it)) }
+                                            )
+                                            Text("تفعيل تنبيه فواتير الاشتراكات والتحصيل", color = fontColor, fontSize = 11.sp)
+                                        }
+                                        var billingMsgStr by remember { mutableStateOf(settings.billingNotifyMsg) }
+                                        OutlinedTextField(
+                                            value = billingMsgStr,
+                                            onValueChange = { billingMsgStr = it; viewModel.updateSettings(settings.copy(billingNotifyMsg = it)) },
+                                            label = { Text("نص إشعار فواتير وسندات السداد", color = primaryColor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+
+                                        Divider(color = secondaryColor.copy(alpha = 0.2f))
+
+                                        Text("ساعة إرسال وتداول الإشعارات: ${settings.notificationSendHour}:00", color = fontColor, fontSize = 11.sp)
+                                        Slider(
+                                            value = settings.notificationSendHour.toFloat(),
+                                            onValueChange = { viewModel.updateSettings(settings.copy(notificationSendHour = it.toInt())) },
+                                            valueRange = 0f..23f,
+                                            colors = SliderDefaults.colors(thumbColor = primaryColor)
+                                        )
+                                    }
+                                }
+                            }
                         } else {
                             item {
                                 Box(
@@ -2920,6 +3367,158 @@ fun AdminPanelScreen(
                                         textAlign = TextAlign.Center,
                                         fontSize = 12.sp
                                     )
+                                }
+                            }
+                        }
+                    }
+                }
+                7 -> {
+                    // Chat Support and Monitoring Room
+                    val allMsgs by viewModel.allChatMessages.collectAsState()
+                    var selectedReceiverId by remember { mutableStateOf<Int?>(null) }
+                    var chatReplyText by remember { mutableStateOf("") }
+                    val activeProvs by viewModel.allProviders.collectAsState()
+
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("💬 غرفة مراقبة المحادثات والدردشة الفورية", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    activeProvs.forEach { p ->
+                                        viewModel.toggleProviderChat(p.id, true)
+                                    }
+                                    Toast.makeText(context, "تم تفعيل الدردشة لجميع مقدمي الخدمات ✅", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("تفعيل للكل ✅", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Button(
+                                onClick = {
+                                    activeProvs.forEach { p ->
+                                        viewModel.toggleProviderChat(p.id, false)
+                                    }
+                                    Toast.makeText(context, "تم إيقاف وتعطيل الدردشة عن جميع مقدمي الخدمات ❌", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("إيقاف للكل ❌", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Divider(color = secondaryColor.copy(alpha = 0.3f))
+
+                        if (selectedReceiverId == null) {
+                            // Groups conversations
+                            val conversations = allMsgs.groupBy { it.receiverId }
+                            if (conversations.isEmpty()) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text("لا توجد أي محادثات جارية حالياً داخل التطبيق 💬", color = fontColor.copy(alpha = 0.5f), fontSize = 12.sp)
+                                }
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    conversations.forEach { (recvId, msgs) ->
+                                        val lastMsg = msgs.lastOrNull()
+                                        val name = if (recvId == 0) "إدارة التطبيق" else "مقدم الخدمة #${recvId}"
+                                        val matchesProv = activeProvs.find { it.id == recvId }
+                                        val displayName = matchesProv?.name ?: name
+                                        item {
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable { selectedReceiverId = recvId }
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(12.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(displayName, color = fontColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                        Text(lastMsg?.messageText ?: "", color = fontColor.copy(alpha = 0.7f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                    }
+                                                    Icon(imageVector = Icons.Default.ChevronLeft, contentDescription = "Open Chat", tint = primaryColor)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // Detailed support window
+                            val conversationMsgs = allMsgs.filter { it.receiverId == selectedReceiverId }
+                            val activeProv = activeProvs.find { it.id == selectedReceiverId }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = { selectedReceiverId = null }) {
+                                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back", tint = primaryColor)
+                                }
+                                Text(activeProv?.name ?: "دردشة مقدم الخدمة #${selectedReceiverId}", color = fontColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.width(48.dp))
+                            }
+
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = surfaceColor.copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    LazyColumn(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        items(conversationMsgs) { msg ->
+                                            val alignDir = if (msg.isFromUser) Alignment.End else Alignment.Start
+                                            val bgBubble = if (msg.isFromUser) primaryColor else secondaryColor.copy(alpha = 0.4f)
+                                            val textCol = if (msg.isFromUser) Color.Black else fontColor
+                                            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = alignDir) {
+                                                Card(
+                                                    colors = CardDefaults.cardColors(containerColor = bgBubble),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Text(msg.messageText, color = textCol, modifier = Modifier.padding(10.dp), fontSize = 12.sp)
+                                                }
+                                                Text(msg.senderName, color = fontColor.copy(alpha = 0.5f), fontSize = 9.sp, modifier = Modifier.padding(horizontal = 4.dp))
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = chatReplyText,
+                                            onValueChange = { chatReplyText = it },
+                                            modifier = Modifier.weight(1f),
+                                            placeholder = { Text("اكتب رد الإدارة وسيرسل فوراً...", color = fontColor.copy(alpha = 0.5f), fontSize = 11.sp) },
+                                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White)
+                                        )
+                                        IconButton(
+                                            onClick = {
+                                                if (chatReplyText.trim().isNotEmpty()) {
+                                                    viewModel.sendChatMessage("إدارة التطبيق المعتمدة", selectedReceiverId ?: 0, chatReplyText.trim(), false)
+                                                    chatReplyText = ""
+                                                }
+                                            }
+                                        ) {
+                                            Icon(imageVector = Icons.Default.Send, contentDescription = "Send", tint = primaryColor)
+                                        }
+                                    }
                                 }
                             }
                         }

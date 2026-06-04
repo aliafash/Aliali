@@ -123,4 +123,46 @@ interface YemenDao {
 
     @Query("DELETE FROM moderators WHERE id = :id")
     suspend fun deleteModeratorById(id: Int)
+
+    // --- Subscription Requests ---
+    @Query("SELECT * FROM subscription_requests ORDER BY requestedAt DESC")
+    fun getSubscriptionRequestsFlow(): Flow<List<SubscriptionRequestEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSubscriptionRequest(request: SubscriptionRequestEntity): Long
+
+    @Query("DELETE FROM subscription_requests WHERE id = :id")
+    suspend fun deleteSubscriptionRequestById(id: Int)
+
+    @Query("SELECT * FROM subscription_requests WHERE id = :id")
+    suspend fun getSubscriptionRequestById(id: Int): SubscriptionRequestEntity?
+
+    // --- Device Whitelist ---
+    @Query("SELECT * FROM device_whitelist ORDER BY addedAt DESC")
+    fun getDeviceWhitelistFlow(): Flow<List<DeviceWhitelistEntity>>
+
+    @Query("SELECT * FROM device_whitelist ORDER BY addedAt DESC")
+    suspend fun getDeviceWhitelistList(): List<DeviceWhitelistEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDeviceWhitelist(device: DeviceWhitelistEntity): Long
+
+    @Query("DELETE FROM device_whitelist WHERE deviceId = :deviceId")
+    suspend fun deleteDeviceWhitelistById(deviceId: String)
+
+    // --- Chat Messages ---
+    @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+    fun getAllChatMessagesFlow(): Flow<List<ChatMessageEntity>>
+
+    @Query("SELECT * FROM chat_messages WHERE receiverId = :receiverId OR (:receiverId = 0) ORDER BY timestamp ASC")
+    fun getChatMessagesByReceiverFlow(receiverId: Int): Flow<List<ChatMessageEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertChatMessage(message: ChatMessageEntity): Long
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearAllChatMessages()
+
+    @Query("DELETE FROM chat_messages WHERE timestamp < :cutoff")
+    suspend fun deleteOldChatMessages(cutoff: Long)
 }
